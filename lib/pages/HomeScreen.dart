@@ -2,11 +2,15 @@ import 'package:anim_search_bar/anim_search_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:watchit/api/api.dart';
+import 'package:watchit/constants.dart';
 import 'package:watchit/models/Movie.dart';
 import 'package:watchit/models/Series.dart';
+import 'package:watchit/pages/searchResultScreen.dart';
 import 'package:watchit/widgets/MoviesSliderWidget.dart';
 import 'package:watchit/widgets/SeriesSliderWidget.dart';
 import 'package:watchit/widgets/TrendingMoviesWidget.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -29,6 +33,58 @@ class _HomeScreenState extends State<HomeScreen> {
     topRatedSeries = Api().getTopRatedSeries();
   }
 
+  // start of the code search
+
+  void _performSearch(String query) async {
+    final apiKey = Constants.accessToken; // Replace with your actual API key
+    final url =
+        'https://api.themoviedb.org/3/search/multi?query=$query&include_adult=false&language=en-US&page=1';
+
+    final response = await http.get(
+      Uri.parse(url),
+      headers: {'Authorization': 'Bearer $apiKey'},
+    );
+
+    if (response.statusCode == 200) {
+      // If the request is successful, parse the response data
+      final jsonData = json.decode(response.body);
+
+      // Extract the results from the response
+      final List<dynamic> results = jsonData['results'];
+
+      // filter result to only show movies and series
+      final List<dynamic> filteredResults = results
+          .where((result) =>
+              result['media_type'] == 'movie' || result['media_type'] == 'tv')
+          .toList();
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => SearchResultsScreen(results: filteredResults),
+        ),
+      );
+      // _showDropdownPage(results);
+    } else {
+      // If the request fails, show an error message
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Error'),
+          content: Text('Failed to search. Please try again later.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  // end of the code
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -36,28 +92,33 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: Image.asset(
-          'assets/Oraflix.png',
-          // 'assets/m7labaflix.png',
+          // 'assets/Oraflix.png',
+          'assets/m7labaflix.png',
           height: 40,
         ),
         actions: [
-          // IconButton(
-          //   onPressed: () {},
-          //   icon: const Icon(
-          //     Icons.notifications,
-          //     color: Colors.red,
-          //   ),
-          // ),
           AnimSearchBar(
+            color: Colors.black,
+            textFieldColor: Colors.grey[900],
+            textFieldIconColor: Colors.red,
+            style: TextStyle(
+              color: Colors.red,
+              fontSize: 15,
+              fontFamily: GoogleFonts.aBeeZee().fontFamily,
+              fontWeight: FontWeight.bold,
+            ),
+            helpText: 'Search...',
+            autoFocus: true,
             boxShadow: false,
             width: 250,
             textController: textSearchController,
             onSuffixTap: () {
               textSearchController.clear();
             },
-            onSubmitted: (String) {},
+            onSubmitted: (String) {
+              _performSearch(String);
+            },
             rtl: true,
-            autoFocus: false,
             suffixIcon: const Icon(
               Icons.search,
               color: Colors.red,
